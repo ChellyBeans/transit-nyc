@@ -121,19 +121,19 @@ def find_passing_station(station_name):
     return route_ids
 
 
-def create_db(file):
+def create_db(gtfs_folder):
     """ Creates a sqlite3 db
 
-    :param file: (string) folder of the GTFS data
+    :param gtfs_folder: (string) folder of the GTFS data
     :return:
     """
     global gtfs_db
     gtfs_db = sqlite3.connect(":memory:")  # In RAM
     # Only looking at the files routes, stop_times, stops, and trips
-    create_table(file + "/routes.txt", "routes")
-    create_table(file + "/stop_times.txt", "stop_times")
-    create_table(file + "/stops.txt", "stops")
-    create_table(file + "/trips.txt", "trips")
+    create_table(gtfs_folder + "/routes.txt", "routes")
+    create_table(gtfs_folder + "/stop_times.txt", "stop_times")
+    create_table(gtfs_folder + "/stops.txt", "stops")
+    create_table(gtfs_folder + "/trips.txt", "trips")
 
 
 def close_db():
