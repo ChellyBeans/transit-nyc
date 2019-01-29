@@ -23,6 +23,18 @@ def create_table(csv, table_name):
     logging.info("%s imported." % table_name)
 
 
+def convert_single_tuple_list_to_list(single_tuple_list):
+    """ Helper function
+
+    :param single_tuple_list: (list) list of tuple items that contain one value
+    :return: (list)
+    """
+    new_list = []
+    for tup in single_tuple_list:
+        new_list.append(tup[0])
+    return new_list
+
+
 def find_stop_id_station_name_like(station_name):
     """ Searches the stops table for stops with containing station name
 
@@ -37,9 +49,7 @@ def find_stop_id_station_name_like(station_name):
     query = 'SELECT DISTINCT stop_id FROM stops WHERE stop_name LIKE \'%' + station_name + '%\''
     cursor.execute(query)
     stops = cursor.fetchall()
-    result = []
-    for stop in stops:
-        result.append(stop[0])  # fetchall returns a tuple, lets just grab the id
+    result = convert_single_tuple_list_to_list(stops)
     logging.debug(query + ": found " + str(result.__len__()) + " stops. " + str(result))
     return result
 
@@ -62,9 +72,7 @@ def find_trip_id_with_stop_id(stop_ids):
 
     cursor.execute(query)
     trips = cursor.fetchall()
-    result = []
-    for trip in trips:
-        result.append(trip[0])  # fetchall returns a tuple, lets just grab the id
+    result = convert_single_tuple_list_to_list(trips)
     logging.debug(query + ": found " + str(result.__len__()) + " trips. " + str(result))
     return result
 
@@ -86,9 +94,7 @@ def find_route_with_trip_id(trip_ids):
     query = 'SELECT DISTINCT route_id FROM trips WHERE trip_id = \'' + '\' OR trip_id = \''.join(trip_ids) + '\''
     cursor.execute(query)
     routes = cursor.fetchall()
-    result = []
-    for route in routes:
-        result.append(route[0])  # fetchall returns a tuple, lets just grab the id
+    result = convert_single_tuple_list_to_list(routes)
     logging.debug(query + ": found " + str(result.__len__()) + " routes. " + str(result))
     return result
 
