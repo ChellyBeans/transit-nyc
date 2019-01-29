@@ -6,68 +6,21 @@ import click
 gtfs_db = None  # This will be our db
 
 
-def create_route_table(gtfs_folder):
-    """ Grabs the routes.txt and inserts data into sqlite3 db
+def create_table(csv, table_name):
+    """ Grabs the csv and inserts data into sqlite3 db
 
-    :param gtfs_folder: (string) gtfs folder
+    :param csv: (string) path to csv
+    :param table_name: (string) name for table
     :return:
     """
     if not gtfs_db:
         logging.error("database not initialized")
         return
 
-    logging.info("importing routes...")
-    p = pandas.read_csv(gtfs_folder + "/routes.txt")
-    p.to_sql("routes", gtfs_db)
-    logging.info("routes imported.")
-
-
-def create_stop_times_table(gtfs_folder):
-    """ Grabs the stop_times.txt and inserts data into sqlite3 db
-
-    :param gtfs_folder: (string) gtfs folder
-    :return:
-    """
-    if not gtfs_db:
-        logging.error("database not initialized")
-        return
-
-    logging.info("importing stop_times...")
-    p = pandas.read_csv(gtfs_folder + "/stop_times.txt")
-    p.to_sql("stop_times", gtfs_db)
-    logging.info("stop_times imported.")
-
-
-def create_stops_table(gtfs_folder):
-    """ Grabs the stops.txt and inserts data into sqlite3 db
-
-    :param gtfs_folder: (string) gtfs folder
-    :return:
-    """
-    if not gtfs_db:
-        logging.error("database not initialized")
-        return
-
-    logging.info("importing stops...")
-    p = pandas.read_csv(gtfs_folder + "/stops.txt")
-    p.to_sql("stops", gtfs_db)
-    logging.info("stops imported.")
-
-
-def create_trips_table(gtfs_folder):
-    """ Grabs the trips.txt and inserts data into sqlite3 db
-
-    :param gtfs_folder: (string) gtfs folder
-    :return:
-    """
-    if not gtfs_db:
-        logging.error("database not initialized")
-        return
-
-    logging.info("importing trips...")
-    p = pandas.read_csv(gtfs_folder + "/trips.txt")
-    p.to_sql("trips", gtfs_db)
-    logging.info("trips imported.")
+    logging.info("importing %s..." % table_name)
+    p = pandas.read_csv(csv)
+    p.to_sql(table_name, gtfs_db)
+    logging.info("%s imported." % table_name)
 
 
 def find_stop_id_station_name_like(station_name):
@@ -177,10 +130,10 @@ def create_db(file):
     global gtfs_db
     gtfs_db = sqlite3.connect(":memory:")  # In RAM
     # Only looking at the files routes, stop_times, stops, and trips
-    create_route_table(file)
-    create_stop_times_table(file)
-    create_stops_table(file)
-    create_trips_table(file)
+    create_table(file + "/routes.txt", "routes")
+    create_table(file + "/stop_times.txt", "stop_times")
+    create_table(file + "/stops.txt", "stops")
+    create_table(file + "/trips.txt", "trips")
 
 
 def close_db():
