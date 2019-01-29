@@ -1,154 +1,79 @@
 import pandas
-import sqlite3
 import logging
 import click
 
-gtfs_db = None  # This will be our db
+routes_df = None
+stops_df = None
+stop_times_df = None
+trips_df = None
 
 
-def create_table(csv, table_name):
-    """ Grabs the csv and inserts data into sqlite3 db
+def find_stop_ids_with_like_station_name(station_name):
+    """ Searches stops_df for stop names that contain station name
 
-    :param csv: (string) path to csv
-    :param table_name: (string) name for table
-    :return:
-    """
-    if not gtfs_db:
-        logging.error("database not initialized")
-        return
-
-    logging.info("importing %s..." % table_name)
-    p = pandas.read_csv(csv)
-    p.to_sql(table_name, gtfs_db)
-    logging.info("%s imported." % table_name)
-
-
-def convert_single_tuple_list_to_list(single_tuple_list):
-    """ Helper function
-
-    :param single_tuple_list: (list) list of tuple items that contain one value
-    :return: (list)
-    """
-    new_list = []
-    for tup in single_tuple_list:
-        new_list.append(tup[0])
-    return new_list
-
-
-def find_stop_id_station_name_like(station_name):
-    """ Searches the stops table for stops with containing station name
-
-    :param station_name: (string) station name
+    :param station_name: (string) target station name
     :return: (list) stop_ids
     """
-    if not gtfs_db:
-        logging.error("database not initialized")
-        return []
-
-    cursor = gtfs_db.cursor()
-    query = 'SELECT DISTINCT stop_id FROM stops WHERE stop_name LIKE \'%' + station_name + '%\''
-    cursor.execute(query)
-    stops = cursor.fetchall()
-    result = convert_single_tuple_list_to_list(stops)
-    logging.debug(query + ": found " + str(result.__len__()) + " stops. " + str(result))
-    return result
+    global stops_df
+    df = stops_df.loc[stops_df['stop_name'].str.contains(station_name)]
+    return list(df['stop_id'])
 
 
-def find_trip_id_with_stop_id(stop_ids):
-    """ Searches stop times for stop_ids matches any stop_ids in list. Returns results trip_ids
+def find_trip_ids_with_stop_ids(stop_ids):
+    """ Searches stop_times_df for stops that are in stop_ids. Returns the trip_id
 
-    :param stop_ids: (list) list of possible stop_ids
+    :param stop_ids: (list) List of possible stop_ids
     :return: (list) trip_ids
     """
-    if not gtfs_db:
-        logging.error("database not initialized")
-        return []
-
-    if not stop_ids:
-        return []
-
-    cursor = gtfs_db.cursor()
-    query = 'SELECT DISTINCT trip_id FROM stop_times WHERE stop_id = \'' + '\' OR stop_id = \''.join(stop_ids) + '\''
-
-    cursor.execute(query)
-    trips = cursor.fetchall()
-    result = convert_single_tuple_list_to_list(trips)
-    logging.debug(query + ": found " + str(result.__len__()) + " trips. " + str(result))
-    return result
+    global stop_times_df
+    df = stop_times_df.loc[stop_times_df['stop_id'].isin(stop_ids)]
+    return list(df['trip_id'])
 
 
-def find_route_with_trip_id(trip_ids):
-    """ Searches trips for trips with any of the trip_ids. Returns the resulting route_ids
+def find_route_ids_with_trip_ids(trip_ids):
+    """ Searches trips_df for trips that match the possible trip_ids. Returns the route_ids
 
-    :param trip_ids: (list) possible trip_ids
+    :param trip_ids: (list) List of possible trip_ids
     :return: (list) route_ids
     """
-    if not gtfs_db:
-        logging.error("database not initialized")
-        return []
-
-    if not trip_ids:
-        return []
-
-    cursor = gtfs_db.cursor()
-    query = 'SELECT DISTINCT route_id FROM trips WHERE trip_id = \'' + '\' OR trip_id = \''.join(trip_ids) + '\''
-    cursor.execute(query)
-    routes = cursor.fetchall()
-    result = convert_single_tuple_list_to_list(routes)
-    logging.debug(query + ": found " + str(result.__len__()) + " routes. " + str(result))
-    return result
+    global trips_df
+    df = trips_df.loc[trips_df['trip_id'].isin(trip_ids)]
+    return list(df['route_id'])
 
 
 def find_passing_station(station_name):
-    """ Searches the database to find what routes pass the station_name
+    """ Searches the dataframes to find what routes pass the station_name
 
     :param station_name: (string) name of a station
     :return: (list) resulting routes
     """
-    if not gtfs_db:
-        logging.error("database not initialized")
-        return []
-
-    stop_ids = find_stop_id_station_name_like(station_name)  # find stops
-    trip_ids = find_trip_id_with_stop_id(stop_ids)  # find trips that day at stops
-
-    # We kinda get a lot of trip_ids, too many for a query...
-    trip_ids_chunks = []
-    for i in range(0, len(trip_ids), 100):  # No reason why I chose 100
-        trip_ids_chunks.append(trip_ids[i:i + 100])
-
-    route_ids = []  # find routes that made those trips
-    for trip_ids in trip_ids_chunks:
-        r_ids = find_route_with_trip_id(trip_ids)
-        for route in r_ids:
-            if route not in route_ids:
-                route_ids.append(route)
+    stop_ids = find_stop_ids_with_like_station_name(station_name)
+    trip_ids = find_trip_ids_with_stop_ids(stop_ids)
+    route_ids = find_route_ids_with_trip_ids(trip_ids)
+    route_ids = list(dict.fromkeys(route_ids))  # remove duplicates
     route_ids.sort()
     return route_ids
 
 
-def create_db(gtfs_folder):
+def create_df(gtfs_folder):
     """ Creates a sqlite3 db
 
     :param gtfs_folder: (string) folder of the GTFS data
     :return:
     """
-    global gtfs_db
-    gtfs_db = sqlite3.connect(":memory:")  # In RAM
     # Only looking at the files routes, stop_times, stops, and trips
-    create_table(gtfs_folder + "/routes.txt", "routes")
-    create_table(gtfs_folder + "/stop_times.txt", "stop_times")
-    create_table(gtfs_folder + "/stops.txt", "stops")
-    create_table(gtfs_folder + "/trips.txt", "trips")
+    global routes_df
+    routes_df = pandas.read_csv(gtfs_folder + "/routes.txt")
 
+    global stop_times_df
+    stop_times_df = pandas.read_csv(gtfs_folder + "/stop_times.txt")
 
-def close_db():
-    """ Close the SQLite DB if possible
+    global stops_df
+    stops_df = pandas.read_csv(gtfs_folder + "/stops.txt")
 
-    :return:
-    """
-    if gtfs_db:
-        gtfs_db.close()
+    global trips_df
+    trips_df = pandas.read_csv(gtfs_folder + "/trips.txt")
+
 
 
 @click.command()
@@ -161,12 +86,10 @@ def print_pass_station(db_folder, station_name, debug):
     else:
         logging.basicConfig(level=logging.INFO)
 
-    create_db(db_folder)
+    create_df(db_folder)
 
     route_ids = find_passing_station(station_name)
     print(route_ids)
-
-    close_db()
 
 
 if __name__ == "__main__":
