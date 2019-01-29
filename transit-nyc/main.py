@@ -77,7 +77,7 @@ def find_route_with_trip_id(trip_ids):
     """
     if not gtfs_db:
         logging.error("database not initialized")
-        return
+        return []
 
     if not trip_ids:
         return []
@@ -101,7 +101,7 @@ def find_passing_station(station_name):
     """
     if not gtfs_db:
         logging.error("database not initialized")
-        return
+        return []
 
     stop_ids = find_stop_id_station_name_like(station_name)  # find stops
     trip_ids = find_trip_id_with_stop_id(stop_ids)  # find trips that day at stops
